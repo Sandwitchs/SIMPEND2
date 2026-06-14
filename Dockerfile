@@ -1,14 +1,15 @@
-FROM php:8.2-apache-alpine
+FROM php:8.2-apache
 
 # Install system dependencies
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
     zip \
     unzip \
     libpng-dev \
-    libjpeg-turbo-dev \
-    freetype-dev
+    libjpeg62-turbo-dev \
+    libfreetype6-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Configure and install PHP extensions (pdo, pdo_mysql, gd)
 RUN docker-php-ext-configure gd \
