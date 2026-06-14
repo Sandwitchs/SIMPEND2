@@ -47,7 +47,7 @@ COPY . .
 RUN composer install --no-dev --optimize-autoloader
 
 # Set permissions for Laravel
-RUN chown -R nobody:nobody /var/www/html/storage /var/www/html/bootstrap/cache
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
 # Expose port 80 (Railway will proxy HTTP traffic)
 EXPOSE 80
