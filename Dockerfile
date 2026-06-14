@@ -32,6 +32,9 @@ RUN composer install --no-dev --optimize-autoloader
 # Enable Apache mod_rewrite (required for Laravel routing)
 RUN a2enmod rewrite
 
+# Disable default MPM modules so the mpm_prefork loaded in httpd.conf is the only one active
+RUN a2dismod mpm_event mpm_worker mpm_prefork || true
+
 # Expose the web server port (Railway will proxy HTTP traffic)
 EXPOSE 80
 
