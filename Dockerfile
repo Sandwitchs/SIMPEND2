@@ -1,4 +1,4 @@
-FROM php:8.2-fpm-alpine
+FROM php:8.2-apache-alpine
 
 # Install system dependencies
 RUN apk add --no-cache \
@@ -6,7 +6,6 @@ RUN apk add --no-cache \
     curl \
     zip \
     unzip \
-    nginx \
     libpng-dev \
     libjpeg-turbo-dev \
     freetype-dev
@@ -29,8 +28,11 @@ COPY . .
 # Install PHP dependencies (no dev packages, optimized autoloader)
 RUN composer install --no-dev --optimize-autoloader
 
+# Enable Apache mod_rewrite (required for Laravel routing)
+RUN a2enmod rewrite
+
 # Expose the web server port (Railway will proxy HTTP traffic)
 EXPOSE 80
 
-# Start PHP-FPM and Nginx in the same container
-CMD ["sh", "-c", "php-fpm -D && nginx -g 'daemon off;'" ]
+# Start Apache in the foreground
+CMD ["apache2-foreground"]
