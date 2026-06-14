@@ -1,45 +1,53 @@
-FROM php:8.2-apache
+FROM php:8.2-fpm-alpine
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install system dependencies & PHP build dependencies
+RUN apk add --no-cache \
     git \
     curl \
     zip \
     unzip \
+    nginx \
     libpng-dev \
-    libjpeg62-turbo-dev \
-    libfreetype6-dev \
-    && rm -rf /var/lib/apt/lists/*
+    libjpeg-turbo-dev \
+    freetype-dev \
+    bash
 
 # Configure and install PHP extensions
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install pdo pdo_mysql gd
 
-# Enable Apache mod_rewrite for Laravel routing
-RUN a2enmod rewrite
-
-# Change Apache document root to Laravel's public directory
-ENV APACHE_DOCUMENT_ROOT /var/www/html/public
-RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
-RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
-
-# Install Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+# Create Nginx configuration for Laravel
+RUN echo 'server { \
+    listen 80; \
+    root /var/www/html/public; \
+    index index.php index.html; \
+    \
+    location / { \
+        try_files $uri $uri/ /index.php?$query_string; \
+    } \
+    \
+    location ~ \.php$ { \
+        fastcgi_pass 127.0.0.1:9000; \
+        fastcgi_index index.php; \
+        include fastcgi_params; \
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name; \
+    } \
+}' > /etc/nginx/http.d/default.conf
 
 # Set working directory
 WORKDIR /var/www/html
 
-# Copy project files
+# Copy application source code
 COPY . .
 
-# Install PHP dependencies
+# Install PHP dependencies (no dev packages, optimized autoloader)
 RUN composer install --no-dev --optimize-autoloader
 
 # Set permissions for Laravel
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+RUN chown -R nobody:nobody /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Expose port 80
+# Expose port 80 (Railway will proxy HTTP traffic)
 EXPOSE 80
 
-# Start Apache in the foreground
-CMD ["apache2-foreground"]
+# Start PHP-FPM in background and Nginx in foreground
+CMD ["sh", "-c", "php-fpm -D && nginx -g 'daemon off;'"]
